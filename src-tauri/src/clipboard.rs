@@ -55,16 +55,17 @@ pub fn copy_text(text: &str) -> Result<(), String> {
     }
 }
 
-// 读取 primary selection（划词取词兜底：selection crate 依赖 XDG_SESSION_TYPE 分派，
-// 沙箱内该变量可能指向 x11 而 XWayland primary 为空，此时直接走 Wayland 协议）
-pub fn primary_text() -> Option<String> {
+// 读取 wayland 剪贴板指定 selection 的文本，空串视为无内容
+fn read_selection(
+    ctype: wl_clipboard_rs::paste::ClipboardType,
+) -> Option<String> {
     use std::io::Read;
-    use wl_clipboard_rs::paste::{get_contents, ClipboardType, MimeType, Seat};
+    use wl_clipboard_rs::paste::{get_contents, MimeType, Seat};
 
     if !is_wayland() {
         return None;
     }
-    match get_contents(ClipboardType::Primary, Seat::Unspecified, MimeType::Any) {
+    match get_contents(ctype, Seat::Unspecified, MimeType::Any) {
         Ok((mut reader, _mime)) => {
             let mut buf = String::new();
             match reader.read_to_string(&mut buf) {
@@ -73,10 +74,21 @@ pub fn primary_text() -> Option<String> {
             }
         }
         Err(e) => {
-            error!("wayland primary read failed: {e}");
+            error!("wayland clipboard read failed: {e}");
             None
         }
     }
+}
+
+// primary selection（划词）：selection crate 按 XDG_SESSION_TYPE 分派，
+// 沙箱内该变量可能指向 x11 而 XWayland primary 为空，此时直接走 Wayland 协议
+pub fn primary_text() -> Option<String> {
+    read_selection(wl_clipboard_rs::paste::ClipboardType::Primary)
+}
+
+// regular 剪贴板（Ctrl+C 复制的内容）：primary 为空时的回退来源
+pub fn regular_text() -> Option<String> {
+    read_selection(wl_clipboard_rs::paste::ClipboardType::Regular)
 }
 
 pub fn start_clipboard_monitor(app_handle: tauri::AppHandle) {

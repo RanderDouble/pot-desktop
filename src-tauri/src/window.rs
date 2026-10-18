@@ -234,11 +234,25 @@ pub fn selection_translate() {
             text = t;
         }
     }
-    // 空选区不弹空窗口
+    // primary 为空时回退 regular 剪贴板，覆盖复制后直接按快捷键的场景
     if text.trim().is_empty() {
-        return;
+        if let Some(t) = crate::clipboard::regular_text() {
+            text = t;
+        }
     }
     let app_handle = APP.get().unwrap();
+    // 全空时系统通知提示，不弹空窗口
+    if text.trim().is_empty() {
+        tauri::api::notification::Notification::new(
+            app_handle.config().tauri.bundle.identifier.clone(),
+        )
+        .title("Pot 划词翻译")
+        .body("没有读到划词内容，请先选中文本")
+        .icon("pot")
+        .show()
+        .unwrap();
+        return;
+    }
     // Write into State
     let state: tauri::State<StringWrapper> = app_handle.state();
     state.0.lock().unwrap().replace_range(.., &text);

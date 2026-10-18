@@ -39,6 +39,8 @@ modules:
       - tar -xzf data.tar.gz
       - cp -a usr/share/. /app/share/
       - install -Dm755 -t /app/bin/ usr/bin/pot
+      # grim 供 screenshot.rs 抓屏（zwlr_screencopy，经 relay 直连 niri）
+      - install -Dm755 -t /app/bin/ usr/bin/grim
     sources:
       - type: file
         path: data.tar.gz

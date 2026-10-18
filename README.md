@@ -53,6 +53,12 @@ pc 从 rpm 解出）→ pnpm build + cargo build → 组 flatpak（官方 deb �
   screencopy 等 global，沙箱内取词与剪贴板全部失效。`pack/wayland-relay.py`
   在宿主侧以普通文件名的 unix socket 透传 niri socket（含 SCM_RIGHTS fd 传递），
   pot 沙箱内 `WAYLAND_DISPLAY` 指向该 relay 即可拿到全部协议。
+- `src-tauri/src/screenshot.rs`：抓屏从 screenshots crate（X11 root 抓取，XWayland
+  下恒为空图）换成调用包内 grim 走 zwlr_screencopy，沙箱内经 relay 直连 niri；
+  grim 由 `pack/build.sh` 从宿主拷入、manifest 安装到 /app/bin。niri 侧 Alt+W
+  仍保留宿主脚本方案（slurp 选区 + grim + `?screenshot=false`），因为 pot 自带
+  框选之后的 OCR autoCopy 链在官方 3.0.7 二进制上同样不触发（A/B 对照确认），
+  框选交互又无法自动化验证，等上游链路查明后再切换。
 
 本机部署（systemd user 服务，已启用）：
 

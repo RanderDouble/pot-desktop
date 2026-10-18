@@ -67,6 +67,8 @@ if [[ ! -f $DEB_CACHE/data.tar.gz ]]; then
   (cd "$DEB_CACHE" && ar x pot.deb && tar -xzf data.tar.gz)
 fi
 cp "$WORK/target/release/pot" "$DEB_CACHE/usr/bin/pot"
+# grim 抓屏（zwlr_screencopy）：screenshot.rs 调用，沙箱内经 relay 直连 niri
+cp /usr/bin/grim "$DEB_CACHE/usr/bin/grim"
 tar -czf "$WORK/data.tar.gz" -C "$DEB_CACHE" usr
 
 # 5) 构建并导出到本地仓库
