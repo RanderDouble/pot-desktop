@@ -51,6 +51,7 @@ window-shadows = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 #openssl
+wl-clipboard-rs = "0.8"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

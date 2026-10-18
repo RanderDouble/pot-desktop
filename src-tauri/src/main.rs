@@ -130,6 +130,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             reload_store,
             get_text,
+            cmd::copy_text,
             cut_image,
             get_base64,
             copy_img,

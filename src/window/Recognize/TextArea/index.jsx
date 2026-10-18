@@ -1,6 +1,6 @@
 import { Card, CardBody, CardFooter, Button, Skeleton, ButtonGroup, Tooltip } from '@nextui-org/react';
 import { sendNotification } from '@tauri-apps/api/notification';
-import { writeText } from '@tauri-apps/api/clipboard';
+import { invoke } from '@tauri-apps/api';
 import { atom, useAtom, useAtomValue } from 'jotai';
 import React, { useEffect, useState } from 'react';
 import { CgSpaceBetween } from 'react-icons/cg';
@@ -66,7 +66,7 @@ export default function TextArea(props) {
                                 setText(v);
                                 setLoading(false);
                                 if (autoCopy) {
-                                    writeText(v).then(() => {
+                                    invoke('copy_text', { text: v }).then(() => {
                                         if (hideWindow) {
                                             sendNotification({
                                                 title: t('common.write_clipboard'),
@@ -107,7 +107,7 @@ export default function TextArea(props) {
                                 setText(v);
                                 setLoading(false);
                                 if (autoCopy) {
-                                    writeText(v).then(() => {
+                                    invoke('copy_text', { text: v }).then(() => {
                                         if (hideWindow) {
                                             sendNotification({
                                                 title: t('common.write_clipboard'),
@@ -182,7 +182,7 @@ export default function TextArea(props) {
                             size='sm'
                             variant='light'
                             onPress={() => {
-                                writeText(text);
+                                invoke('copy_text', { text: text });
                             }}
                         >
                             <MdContentCopy className='text-[16px]' />

@@ -1,3 +1,4 @@
+use crate::clipboard::copy_text as clipboard_copy_text;
 use crate::config::get;
 use crate::config::StoreWrapper;
 use crate::error::Error;
@@ -7,6 +8,12 @@ use log::{error, info};
 use serde_json::{json, Value};
 use std::io::Read;
 use tauri::Manager;
+
+// 文本复制：Wayland + X11 双写（详见 clipboard.rs）
+#[tauri::command(async)]
+pub fn copy_text(text: String) -> Result<(), String> {
+    clipboard_copy_text(&text)
+}
 
 #[tauri::command]
 pub fn get_text(state: tauri::State<StringWrapper>) -> String {

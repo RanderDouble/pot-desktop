@@ -226,13 +226,22 @@ fn translate_window() -> Window {
 pub fn selection_translate() {
     use selection::get_text;
     // Get Selected Text
-    let text = get_text();
-    if !text.trim().is_empty() {
-        let app_handle = APP.get().unwrap();
-        // Write into State
-        let state: tauri::State<StringWrapper> = app_handle.state();
-        state.0.lock().unwrap().replace_range(.., &text);
+    let mut text = get_text();
+    // selection crate 按 XDG_SESSION_TYPE 分派，沙箱内可能落到 XWayland primary（恒空），
+    // 此时直接走 Wayland 协议读 primary selection
+    if text.trim().is_empty() {
+        if let Some(t) = crate::clipboard::primary_text() {
+            text = t;
+        }
     }
+    // 空选区不弹空窗口
+    if text.trim().is_empty() {
+        return;
+    }
+    let app_handle = APP.get().unwrap();
+    // Write into State
+    let state: tauri::State<StringWrapper> = app_handle.state();
+    state.0.lock().unwrap().replace_range(.., &text);
 
     let window = translate_window();
     window.emit("new_text", text).unwrap();

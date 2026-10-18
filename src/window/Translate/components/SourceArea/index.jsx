@@ -1,7 +1,7 @@
 import { Button, Card, CardBody, CardFooter, ButtonGroup, Chip, Tooltip, Spacer } from '@nextui-org/react';
 import { BaseDirectory, readTextFile } from '@tauri-apps/api/fs';
 import React, { useEffect, useRef, useState } from 'react';
-import { writeText } from '@tauri-apps/api/clipboard';
+import { invoke } from '@tauri-apps/api';
 import { HiOutlineVolumeUp } from 'react-icons/hi';
 import { appWindow } from '@tauri-apps/api/window';
 import toast, { Toaster } from 'react-hot-toast';
@@ -11,7 +11,6 @@ import { MdSmartButton } from 'react-icons/md';
 import { useTranslation } from 'react-i18next';
 import { HiTranslate } from 'react-icons/hi';
 import { LuDelete } from 'react-icons/lu';
-import { invoke } from '@tauri-apps/api';
 import { atom, useAtom } from 'jotai';
 import { getServiceName, getServiceSouceType, ServiceSourceType } from '../../../../utils/service_instance';
 import { useConfig, useSyncAtom, useVoice, useToastStyle } from '../../../../hooks';
@@ -407,7 +406,7 @@ export default function SourceArea(props) {
                                     variant='light'
                                     size='sm'
                                     onPress={() => {
-                                        writeText(sourceText);
+                                        invoke('copy_text', { text: sourceText });
                                     }}
                                 >
                                     <MdContentCopy className='text-[16px]' />

@@ -15,7 +15,7 @@ import { BiCollapseVertical, BiExpandVertical } from 'react-icons/bi';
 import { BaseDirectory, readTextFile } from '@tauri-apps/api/fs';
 import { sendNotification } from '@tauri-apps/api/notification';
 import React, { useEffect, useState, useRef } from 'react';
-import { writeText } from '@tauri-apps/api/clipboard';
+import { invoke } from '@tauri-apps/api';
 import PulseLoader from 'react-spinners/PulseLoader';
 import { TbTransformFilled } from 'react-icons/tb';
 import { HiOutlineVolumeUp } from 'react-icons/hi';
@@ -105,7 +105,7 @@ export default function TargetArea(props) {
             clipboardMonitor !== null
         ) {
             if (autoCopy === 'source' && !clipboardMonitor) {
-                writeText(sourceText).then(() => {
+                invoke('copy_text', { text: sourceText }).then(() => {
                     if (hideWindow) {
                         sendNotification({ title: t('common.write_clipboard'), body: sourceText });
                     }
@@ -209,14 +209,14 @@ export default function TargetArea(props) {
                         if (index === 0 && !clipboardMonitor) {
                             switch (autoCopy) {
                                 case 'target':
-                                    writeText(v).then(() => {
+                                    invoke('copy_text', { text: v }).then(() => {
                                         if (hideWindow) {
                                             sendNotification({ title: t('common.write_clipboard'), body: v });
                                         }
                                     });
                                     break;
                                 case 'source_target':
-                                    writeText(sourceText.trim() + '\n\n' + v).then(() => {
+                                    invoke('copy_text', { text: sourceText.trim() + '\n\n' + v }).then(() => {
                                         if (hideWindow) {
                                             sendNotification({
                                                 title: t('common.write_clipboard'),
@@ -282,14 +282,14 @@ export default function TargetArea(props) {
                             if (index === 0 && !clipboardMonitor) {
                                 switch (autoCopy) {
                                     case 'target':
-                                        writeText(v).then(() => {
+                                        invoke('copy_text', { text: v }).then(() => {
                                             if (hideWindow) {
                                                 sendNotification({ title: t('common.write_clipboard'), body: v });
                                             }
                                         });
                                         break;
                                     case 'source_target':
-                                        writeText(sourceText.trim() + '\n\n' + v).then(() => {
+                                        invoke('copy_text', { text: sourceText.trim() + '\n\n' + v }).then(() => {
                                             if (hideWindow) {
                                                 sendNotification({
                                                     title: t('common.write_clipboard'),
@@ -656,7 +656,7 @@ export default function TargetArea(props) {
                                     size='sm'
                                     isDisabled={typeof result !== 'string' || result === ''}
                                     onPress={() => {
-                                        writeText(result);
+                                        invoke('copy_text', { text: result });
                                     }}
                                 >
                                     <MdContentCopy className='text-[16px]' />
