@@ -56,3 +56,8 @@ window-shadows = "0.2"
 # this feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
+
+# rustc 1.98 glob 冲突解析变化导致 wry 编译失败，显式导入 SettingsExt 修补。
+# 详见 patches/wry-0.24.11/src/webview/webkitgtk/mod.rs 顶部注释。
+[patch.crates-io]
+wry = { path = "../patches/wry-0.24.11" }
