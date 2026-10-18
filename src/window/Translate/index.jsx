@@ -54,14 +54,16 @@ void listen('tauri://focus', () => {
         clearTimeout(blurTimeout);
     }
 });
-// 监听 move 事件取消 blurTimeout 时间之内的关闭窗口
-void listen('tauri://move', () => {
-    info('Move');
-    if (blurTimeout) {
-        info('Cancel Close');
-        clearTimeout(blurTimeout);
-    }
-});
+// niri 下窗口显示时 set_position 会触发 move 事件，落在 blur 之后 100ms 内会
+// 取消关闭，导致失焦后窗口残留。注释 move 监听；focus 监听保留，windows 下
+// 拖动窗口时 blur 后紧跟 focus，仍能取消误关。
+// void listen('tauri://move', () => {
+//     info('Move');
+//     if (blurTimeout) {
+//         info('Cancel Close');
+//         clearTimeout(blurTimeout);
+//     }
+// });
 
 export default function Translate() {
     const [closeOnBlur] = useConfig('translate_close_on_blur', true);
