@@ -38,6 +38,33 @@ pc 从 rpm 解出）→ pnpm build + cargo build → 组 flatpak（官方 deb �
 再 `flatpak --user mask com.pot_app.pot` 防止 flathub 更新覆盖。
 上游发新版时：解 mask、升级源码、重跑 build.sh、重新 mask。
 
+## Wayland 剪贴板与取词（copy_text 与 relay）
+
+新功能层：
+
+- `src-tauri/src/clipboard.rs`：`copy_text()` 在 Wayland 下用 wl-clipboard-rs 写
+  data-control（`serve_requests Only(8)` 防止复制进程常驻），同时 arboard 双写 X11，
+  任一成功即返回；`primary_text()` 读 primary selection。`cmd.rs` 暴露为
+  `copy_text` 命令，前端所有 `writeText` 调用点（TargetArea/SourceArea/Recognize
+  的 TextArea）统一改走该命令。`window.rs` 的 `selection_translate` 在选区为空时
+  回退读取 primary，仍为空直接返回不开窗。
+- flatpak 沙箱的 wayland socket 挂的是 flatpak 内置 proxy，带 security-context
+  元数据；niri 对 security-context 客户端隐藏 data-control、primary-selection、
+  screencopy 等 global，沙箱内取词与剪贴板全部失效。`pack/wayland-relay.py`
+  在宿主侧以普通文件名的 unix socket 透传 niri socket（含 SCM_RIGHTS fd 传递），
+  pot 沙箱内 `WAYLAND_DISPLAY` 指向该 relay 即可拿到全部协议。
+
+本机部署（systemd user 服务，已启用）：
+
+- `~/.local/bin/wayland-relay.py`（源码 `pack/wayland-relay.py`）：
+  `pot-wayland-relay.service` 运行，监听 `~/.local/state/pot-wayland/relay.sock`，
+  转发 `/run/user/1000/wayland-1`。
+- `~/.local/bin/run-pot.sh`：`pot.service` 运行，`flatpak run` 时追加
+  `--filesystem=~/.local/state/pot-wayland` 与
+  `--env=WAYLAND_DISPLAY=/home/rander/.local/state/pot-wayland/relay.sock`。
+- `~/.config/autostart/com.pot_app.pot.desktop` 已加 `Hidden=true`，避免与
+  `pot.service` 双实例。
+
 ## 运行环境注意
 
 本机 shell 环境 /run/user/1000 与 /tmp 上层挂载为只读：flatpak 起沙箱需要可写的
