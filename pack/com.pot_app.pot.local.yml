@@ -1,0 +1,44 @@
+id: com.pot_app.pot
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+command: pot
+branch: stable
+rename-icon: pot
+rename-desktop-file: pot.desktop
+
+finish-args:
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --share=ipc
+  - --share=network
+  - --device=dri
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.ayatana.indicator.application
+  - --filesystem=xdg-pictures
+
+modules:
+  # webkit2gtk-4.0 / tesseract / libappindicator 等运行库从已安装的 flathub 版提取，
+  # 避免从源码编译 webkit（runtime org.gnome.Platform 48 不含 webkit2gtk-4.0）。
+  - name: app-libs
+    buildsystem: simple
+    build-commands:
+      - tar -xf app-libs.tar
+      - cp -a lib/. /app/lib/
+      - cp -a libexec/. /app/libexec/
+    sources:
+      - type: file
+        path: app-libs.tar
+
+  - name: pot
+    buildsystem: simple
+    build-commands:
+      # data.tar.gz 来自官方 3.0.7 deb 的 usr 树（share 资源骨架），
+      # bin/pot 替换为本地编译产物（失焦关闭修复）
+      - tar -xzf data.tar.gz
+      - cp -a usr/share/. /app/share/
+      - install -Dm755 -t /app/bin/ usr/bin/pot
+    sources:
+      - type: file
+        path: data.tar.gz
