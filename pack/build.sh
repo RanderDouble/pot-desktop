@@ -13,6 +13,7 @@ STABLE_FILES="$HOME/.local/share/rander/environments/niri/dms/flatpak/app/com.po
 
 RUNTIME_LIB="/var/lib/flatpak/runtime/org.gnome.Platform/x86_64/48/active/files/lib/x86_64-linux-gnu"
 RUSTC_DIR="$WORK/rust-1.83.0"   # rustc 1.83/1.84 均可；1.85+ 会触发 wry 编译问题
+command -v node >/dev/null || { NODE_V=$(ls -d "$HOME"/.local/share/fnm/node-versions/*/installation | tail -1); export PATH="$NODE_V/bin:$PATH"; }
 export PATH="$RUSTC_DIR/bin:$PATH"
 
 mkdir -p "$WORK/sysroot/lib"
@@ -23,9 +24,11 @@ if [[ ! -f $WORK/app-libs.tar ]]; then
 fi
 
 # 2) 生成链接用 sysroot：pc 文件 + .so 符号
+mkdir -p "$WORK/sysroot/lib/pkgconfig"
 for pc in webkit2gtk-4.0 javascriptcoregtk-4.0 libsoup-2.4 libsoup-gnome-2.4; do
-  sed "s|prefix=.*|prefix=$STABLE_FILES|; s|-L\${libdir}|-L$STABLE_FILES/lib|" \
-    "$STABLE_FILES/lib/pkgconfig/$pc.pc" > "$WORK/sysroot/lib/$pc.pc" 2>/dev/null || true
+  sed -e "s|^prefix=.*|prefix=$STABLE_FILES|" \
+      -e "s|^libdir=.*|libdir=$WORK/sysroot/lib|" \
+      "$STABLE_FILES/lib/pkgconfig/$pc.pc" > "$WORK/sysroot/lib/pkgconfig/$pc.pc"
 done
 for f in libwebkit2gtk-4.0.so libjavascriptcoregtk-4.0.so libsoup-2.4.so libsoup-gnome-2.4.so; do
   ln -sf "$STABLE_FILES/lib/$f" "$WORK/sysroot/lib/$f"
@@ -33,13 +36,23 @@ done
 for f in libicuuc.so.75 libicui18n.so.75 libicudata.so.75 libjxl.so.0.10 libjxl_cms.so.0.10 libjxl_threads.so.0.10; do
   [[ -e $WORK/sysroot/lib/$f ]] || ln -sf "$RUNTIME_LIB/$f" "$WORK/sysroot/lib/$f"
 done
+# libsoup 私有依赖 sqlite3/libpsl 的 pc（宿主机未装 -devel 时从 rpm 解出；编译只需 pc）
+for rpm_name in sqlite-devel libpsl-devel; do
+  pkg-config --exists ${rpm_name%-devel} 2>/dev/null && continue
+  [[ -e $WORK/sysroot/lib/pkgconfig/${rpm_name%-devel}.pc ]] && continue
+  mkdir -p "$WORK/rpms" "$WORK/extract"
+  (cd "$WORK/rpms" && { dnf download -q "$rpm_name" 2>/dev/null || dnf download -q --arch=x86_64 "$rpm_name"; })
+  rpm2cpio "$WORK/rpms/$rpm_name"-*.x86_64.rpm | cpio -idm -D "$WORK/extract" 2>/dev/null
+  find "$WORK/extract" -name '*.pc' -exec cp {} "$WORK/sysroot/lib/pkgconfig/" \;
+done
 
-export PKG_CONFIG_PATH="$WORK/sysroot/lib"
+export PKG_CONFIG_PATH="$WORK/sysroot/lib/pkgconfig"
 export RUSTFLAGS="-L$WORK/sysroot/lib -Clink-arg=-Wl,-rpath-link,$WORK/sysroot/lib"
 
 # 3) 前端 + Rust（必须带 custom-protocol feature，否则资源不内嵌、窗口永不显示）
 cd "$ROOT"
-[[ -d node_modules ]] || pnpm install --frozen-lockfile
+export CI=true pnpm_config_verify_deps_before_run=false
+[[ -d node_modules ]] || pnpm install --frozen-lockfile --config.confirmModulesPurge=false
 pnpm build
 cd src-tauri
 CARGO_TARGET_DIR="$WORK/target" cargo build --release --features custom-protocol
