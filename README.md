@@ -116,8 +116,9 @@ exec /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=pot \
 **下个系统部署顺序**：
 
 1. `pack/build.sh` 构建并按脚本末尾提示安装（加 potlocal 远程、install、mask）。
-2. `install -Dm755 pack/wayland-relay.py ~/.local/bin/wayland-relay.py` 与
-   `install -Dm755 pack/deploy/run-pot.sh ~/.local/bin/run-pot.sh`。
+2. `install -Dm755 pack/wayland-relay.py ~/.local/bin/wayland-relay.py`、
+   `install -Dm755 pack/deploy/run-pot.sh ~/.local/bin/run-pot.sh` 与
+   `install -Dm755 pack/deploy/pot-grim-ocr.sh ~/.config/niri/scripts/pot-grim-ocr.sh`。
 3. `install -Dm644 pack/deploy/pot-wayland-relay.service pack/deploy/pot.service -t ~/.config/systemd/user/`，
    `systemctl --user daemon-reload`，
    `systemctl --user enable --now pot-wayland-relay.service pot.service`。
@@ -138,5 +139,6 @@ flatpak 命令需要 `XDG_DATA_HOME=~/.local/share/rander/environments/niri/dms`
 
 - `src/`（仓库根即 pot 源码树）：上游导入提交后跟修复提交。
 - `pack/`：flatpak manifest 模板与 build.sh；`pack/deploy/` 收录 systemd user
-  单元与启动脚本（路径按 `%h`/`%t`/`$HOME` 归一，可直接部署到新机器）。
+  单元与全部宿主侧脚本（run-pot.sh、pot-grim-ocr.sh，路径按 `%h`/`%t`/`$HOME`
+  归一，可直接部署到新机器）。
 - `.work/`（已 gitignore）：sysroot、deb-cache、rust 工具链、target、repo。
