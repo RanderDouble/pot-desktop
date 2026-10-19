@@ -1,0 +1,15 @@
+[Unit]
+Description=Pot translate daemon (patched fork)
+After=pot-relay.service
+Requires=pot-relay.service
+
+[Service]
+# TMPDIR/XDG_DATA_HOME 用 env 前缀传递（%h 在 ExecStart 内可靠展开；
+# Environment= 的 %h 展开不可依赖），flatpak 会把 TMPDIR 透传进沙箱
+ExecStartPre=/usr/bin/mkdir -p %h/scratch/tmp
+ExecStart=/usr/bin/env TMPDIR=%h/scratch/tmp XDG_DATA_HOME=%h/.local/share/rander/environments/niri/dms /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=pot com.pot_app.pot
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

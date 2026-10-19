@@ -9,7 +9,6 @@ rename-desktop-file: pot.desktop
 
 finish-args:
   - --socket=x11
-  - --socket=wayland
   - --socket=pulseaudio
   - --share=ipc
   - --share=network
@@ -17,6 +16,10 @@ finish-args:
   - --talk-name=org.kde.StatusNotifierWatcher
   - --talk-name=org.ayatana.indicator.application
   - --filesystem=xdg-pictures
+  # Wayland 走宿主侧 relay（security-context 代理隐藏 data-control 等协议），
+  # 不申请 --socket=wayland；目录由 relay 服务创建，:create 兜底
+  - --filesystem=xdg-run/pot-wayland:create
+  - --env=WAYLAND_DISPLAY=pot-wayland/relay.sock
 
 modules:
   # webkit2gtk-4.0 / tesseract / libappindicator 等运行库从已安装的 flathub 版提取，

@@ -50,6 +50,8 @@ try:
     os.unlink(LISTEN)
 except FileNotFoundError:
     pass
+# 监听目录可能尚不存在（如 %t/pot-wayland），先建
+os.makedirs(os.path.dirname(LISTEN), exist_ok=True)
 ls.bind(LISTEN)
 ls.listen(16)
 print(f"relay {LISTEN} -> {TARGET}", flush=True)

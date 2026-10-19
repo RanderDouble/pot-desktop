@@ -1,8 +1,10 @@
 [Unit]
 Description=Wayland fd relay for pot (bypass flatpak security-context filter)
+
 [Service]
-ExecStart=/usr/bin/python3 %h/.local/bin/wayland-relay.py %h/.local/state/pot-wayland/relay.sock %t/wayland-1
+ExecStart=/usr/bin/python3 %h/.local/bin/wayland-relay.py %t/pot-wayland/relay.sock %t/wayland-1
 Restart=on-failure
 RestartSec=2
+
 [Install]
 WantedBy=default.target
