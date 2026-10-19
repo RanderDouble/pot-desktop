@@ -55,21 +55,77 @@ pc 从 rpm 解出）→ pnpm build + cargo build → 组 flatpak（官方 deb �
   pot 沙箱内 `WAYLAND_DISPLAY` 指向该 relay 即可拿到全部协议。
 - `src-tauri/src/screenshot.rs`：抓屏从 screenshots crate（X11 root 抓取，XWayland
   下恒为空图）换成调用包内 grim 走 zwlr_screencopy，沙箱内经 relay 直连 niri；
-  grim 由 `pack/build.sh` 从宿主拷入、manifest 安装到 /app/bin。niri 侧 Alt+W
-  仍保留宿主脚本方案（slurp 选区 + grim + `?screenshot=false`），因为 pot 自带
-  框选之后的 OCR autoCopy 链在官方 3.0.7 二进制上同样不触发（A/B 对照确认），
-  框选交互又无法自动化验证，等上游链路查明后再切换。
+  grim 由 `pack/build.sh` 从宿主拷入、manifest 安装到 /app/bin。
+- OCR 识别链已端到端实测：识别服务列表首位是 rapid 插件（RapidOcrOnnx，info.json
+  把 auto 映射到 ch 模型），`recognize_auto_copy` 打开后识别结果经 `copy_text`
+  自动写入剪贴板。niri 侧 Alt+W 保留宿主脚本（slurp 选区 + grim 裁图 +
+  `?screenshot=false`），负责替代 pot 自带截图流程的框选交互。
 
-本机部署（systemd user 服务，已启用）：
+### systemd 服务（写法与作用）
 
-- `~/.local/bin/wayland-relay.py`（源码 `pack/wayland-relay.py`）：
-  `pot-wayland-relay.service` 运行，监听 `~/.local/state/pot-wayland/relay.sock`，
-  转发 `/run/user/1000/wayland-1`。
-- `~/.local/bin/run-pot.sh`：`pot.service` 运行，`flatpak run` 时追加
-  `--filesystem=~/.local/state/pot-wayland` 与
-  `--env=WAYLAND_DISPLAY=/home/rander/.local/state/pot-wayland/relay.sock`。
-- `~/.config/autostart/com.pot_app.pot.desktop` 已加 `Hidden=true`，避免与
-  `pot.service` 双实例。
+修复版 flatpak 依赖两个 systemd user 服务，单元定义收录在 `pack/deploy/`，
+路径全部用 `%h`（家目录）、`%t`（`/run/user/$UID`）、`$HOME` 书写，换机器直接可用。
+
+**pot-wayland-relay.service**：Wayland 协议透传桥。flatpak 给沙箱挂的 socket 带
+security-context 标记，niri 对这类客户端隐藏 data-control、primary-selection、
+screencopy 等协议，沙箱内取词、剪贴板、截图全部失效。本服务运行
+`pack/wayland-relay.py`，在宿主侧用普通文件名 socket 双向透传宿主真实 socket
+（字节流与 SCM_RIGHTS fd 均转发）：
+
+```ini
+[Unit]
+Description=Wayland fd relay for pot (bypass flatpak security-context filter)
+[Service]
+ExecStart=/usr/bin/python3 %h/.local/bin/wayland-relay.py %h/.local/state/pot-wayland/relay.sock %t/wayland-1
+Restart=on-failure
+RestartSec=2
+[Install]
+WantedBy=default.target
+```
+
+**pot.service**：pot 守护启动器，随登录自启、崩溃自动拉起。经 `pack/deploy/run-pot.sh`
+以 flatpak 启动修复版：挂载 relay 状态目录、把 `WAYLAND_DISPLAY` 指向 relay socket、
+导出可写 TMPDIR（`/run/user` 只读时 flatpak 起沙箱需要可写临时目录）：
+
+```ini
+[Unit]
+Description=Pot translate daemon (patched fork)
+After=pot-wayland-relay.service
+Requires=pot-wayland-relay.service
+[Service]
+ExecStart=%h/.local/bin/run-pot.sh
+Restart=on-failure
+RestartSec=3
+[Install]
+WantedBy=default.target
+```
+
+```bash
+#!/bin/bash
+# run-pot.sh；flatpak 起沙箱需要可写 TMPDIR（/run/user 只读），缺失时先建
+export TMPDIR="${TMPDIR:-$HOME/scratch/tmp}"
+mkdir -p "$TMPDIR"
+# flatpak 用户安装目录位于 Rander 环境树
+export XDG_DATA_HOME="$HOME/.local/share/rander/environments/niri/dms"
+exec /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=pot \
+  --filesystem="$HOME/.local/state/pot-wayland" \
+  --env=WAYLAND_DISPLAY="$HOME/.local/state/pot-wayland/relay.sock" \
+  com.pot_app.pot
+```
+
+**下个系统部署顺序**：
+
+1. `pack/build.sh` 构建并按脚本末尾提示安装（加 potlocal 远程、install、mask）。
+2. `install -Dm755 pack/wayland-relay.py ~/.local/bin/wayland-relay.py` 与
+   `install -Dm755 pack/deploy/run-pot.sh ~/.local/bin/run-pot.sh`。
+3. `install -Dm644 pack/deploy/pot-wayland-relay.service pack/deploy/pot.service -t ~/.config/systemd/user/`，
+   `systemctl --user daemon-reload`，
+   `systemctl --user enable --now pot-wayland-relay.service pot.service`。
+4. `~/.config/autostart/com.pot_app.pot.desktop` 标 `Hidden=true` 防双实例；
+   niri 浮动规则 `match app-id=r"^pot$" open-floating true`。
+5. niri 快捷键：Alt+Q → `curl --silent --fail -X POST --data-binary '' http://127.0.0.1:60828/selection_translate`；
+   Alt+Shift+T → `curl --silent --fail http://127.0.0.1:60828/input_translate`；
+   Alt+W → 宿主脚本（slurp + grim + `?screenshot=false`）。
 
 ## 运行环境注意
 
@@ -81,5 +137,6 @@ flatpak 命令需要 `XDG_DATA_HOME=~/.local/share/rander/environments/niri/dms`
 ## 仓库布局
 
 - `src/`（仓库根即 pot 源码树）：上游导入提交后跟修复提交。
-- `pack/`：flatpak manifest 模板与 build.sh。
+- `pack/`：flatpak manifest 模板与 build.sh；`pack/deploy/` 收录 systemd user
+  单元与启动脚本（路径按 `%h`/`%t`/`$HOME` 归一，可直接部署到新机器）。
 - `.work/`（已 gitignore）：sysroot、deb-cache、rust 工具链、target、repo。
